@@ -37,27 +37,22 @@ jobs:
       - name: Deploy to Aliyun ECS
         uses: appleboy/ssh-action@v1.0.3
         with:
-        script: |
-            set -e # 🛡️ SRE 保命符：只要有任何一行命令报错，脚本立即中断并爆红！绝不带病运行！
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USERNAME }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            set -e
             
             cd ~/docker-test
             
-            # 💡 修复变量穿透：让 GitHub 引擎在发送脚本前，先把变量渲染进去
             COMMIT_SHA="${{ github.sha }}"
             IMAGE_TAG="${COMMIT_SHA:0:7}"
             FULL_IMAGE_URL="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
             
-            # 动态修改 docker-compose.yml 里的镜像版本号（sed 会自动覆盖掉那个残废的冒号）
             sed -i "s|image: .*|image: $FULL_IMAGE_URL|g" docker-compose.yml
             
-            # 登录 ACR 并拉取新镜像重启
             docker login --username=${{ secrets.ACR_USERNAME }} --password=${{ secrets.ACR_PASSWORD }} ${{ env.REGISTRY }}
             docker compose pull
             docker compose up -d
             
-            # 清理旧镜像防爆盘
             docker image prune -f
-          host: ${{ secrets.ECS_HOST }}
-          username: ${{ secrets.ECS_USERNAME }}
-          key: ${{ secrets.ECS_SSH_KEY }}
-          
