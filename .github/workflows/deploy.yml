@@ -6,8 +6,8 @@ on:
       - main
 
 env:
-  REGISTRY: registry.cn-guangzhou.aliyuncs.com # ⚠️ 请确认你的 ACR 地域
-  NAMESPACE: alex-sre-lab                      # 你的命名空间
+  REGISTRY: crpi-1aoj3kfh0sr1qin8.cn-guangzhou.personal.cr.aliyuncs.com
+  NAMESPACE: alex-sre-lab                      
   IMAGE_NAME: sre-api
 
 jobs:
