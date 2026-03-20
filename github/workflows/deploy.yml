@@ -1,0 +1,57 @@
+name: SRE Automated Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: registry.cn-guangzhou.aliyuncs.com # ⚠️ 请确认你的 ACR 地域
+  NAMESPACE: alex-sre-lab                      # 你的命名空间
+  IMAGE_NAME: sre-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Aliyun ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          FULL_IMAGE_URL=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+          
+          echo "开始构建镜像: $FULL_IMAGE_URL"
+          docker build -t $FULL_IMAGE_URL .
+          docker push $FULL_IMAGE_URL
+
+      - name: Deploy to Aliyun ECS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USERNAME }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            cd ~/docker-test
+            IMAGE_TAG=${GITHUB_SHA::7}
+            FULL_IMAGE_URL=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+            
+            # SRE 魔法：动态修改 docker-compose.yml 里的镜像版本号
+            sed -i "s|image: .*|image: $FULL_IMAGE_URL|g" docker-compose.yml
+            
+            # 登录 ACR 并拉取新镜像重启
+            docker login --username=${{ secrets.ACR_USERNAME }} --password=${{ secrets.ACR_PASSWORD }} ${{ env.REGISTRY }}
+            docker compose pull
+            docker compose up -d
+            
+            # 清理旧镜像防爆盘
+            docker image prune -f
