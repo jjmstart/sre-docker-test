@@ -1,0 +1,11 @@
+services:
+  api:
+    image: sre-api:latest # 这个名字等下会被流水线自动替换成阿里云的真实地址
+    container_name: prod-api-server
+    ports:
+      - "8080:8080"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 50M
